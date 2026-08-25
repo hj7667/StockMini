@@ -1,4 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using System.IO;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace StockMini.Models
 {
@@ -11,13 +14,23 @@ namespace StockMini.Models
         // DB 연결 설정 (어떤 서버, 어떤 DB에 붙을지)
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlServer(
-                @"Server=localhost\SQLEXPRESS;Database=StockMiniDB;Trusted_Connection=True;TrustServerCertificate=True;"
-            // Server: 아까 SSMS에서 접속했던 그 서버
-            // Database: 새로 만들 DB 이름 (마이그레이션 시 자동 생성됨)
-            // Trusted_Connection: Windows 인증 사용
-            // TrustServerCertificate: 로컬 인증서 그냥 신뢰하겠다는 설정
-            );
+            if (!optionsBuilder.IsConfigured)
+            {
+                var configuration = new ConfigurationBuilder()
+                                        .SetBasePath(Directory.GetCurrentDirectory())
+                                        .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                                        .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
+                                        .Build();
+
+                // 파일이 둘 다 없거나 실패하면 기본 연결 문자열 사용
+                string connectionString = configuration.GetConnectionString("DefaultConnection")
+                    ?? @"Server=localhost\SQLEXPRESS01;Database=StockMiniDB;Trusted_Connection=True;TrustServerCertificate=True;";
+
+                optionsBuilder.UseSqlServer(connectionString);
+
+                // 3. SQL Server 설정 적용
+                optionsBuilder.UseSqlServer(connectionString);
+            }
         }
     }
 }
